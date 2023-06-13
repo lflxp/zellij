@@ -8,7 +8,7 @@ use ansi_term::{
     Style,
 };
 
-use std::fmt::{Display, Error, Formatter};
+use std::{fmt::{Display, Error, Formatter}, time};
 use zellij_tile::prelude::actions::Action;
 use zellij_tile::prelude::*;
 use zellij_tile_utils::{palette_match, style};
@@ -20,6 +20,7 @@ use second_line::{
     text_copied_hint,
 };
 use tip::utils::get_cached_tip_name;
+use chrono::prelude::*;
 
 // for more of these, copy paste from: https://en.wikipedia.org/wiki/Box-drawing_character
 static ARROW_SEPARATOR: &str = "";
@@ -230,7 +231,10 @@ impl ZellijPlugin for State {
                 self.text_copy_destination = None;
                 self.display_system_clipboard_failure = false;
             },
-            _ => {},
+            _ => {
+                std::thread::sleep(time::Duration::from_secs(1));
+                self.render(20, 20);
+            },
         };
         should_render
     }
@@ -246,6 +250,7 @@ impl ZellijPlugin for State {
         let active_tab = self.tabs.iter().find(|t| t.active);
         let first_line = first_line(&self.mode_info, active_tab, cols, separator);
         let second_line = self.second_line(cols);
+        let three_line = self.three_line(cols);
 
         let background = match self.mode_info.style.colors.theme_hue {
             ThemeHue::Dark => self.mode_info.style.colors.black,
@@ -280,7 +285,9 @@ impl ZellijPlugin for State {
         }
 
         if rows > 1 {
-            print!("\u{1b}[m{}\u{1b}[0K", second_line);
+            // print!("\u{1b}[m{}\u{1b}[0K", second_line);
+            // print!("\u{1b}[m{}\u{1b}[0K", three_line);
+            print!("\u{1b}[m{} {}\u{1b}[0K", second_line, three_line);
         }
     }
 }
@@ -320,6 +327,20 @@ impl State {
         } else {
             LinePart::default()
         }
+    }
+
+    fn three_line(&self, _cols: usize) -> LinePart {
+        // LinePart::default()
+        let supports_arrow_fonts = !self.mode_info.capabilities.arrow_fonts;
+        let separator = if supports_arrow_fonts {
+            ARROW_SEPARATOR
+        } else {
+            ""
+        };
+        let local = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+        let mut data: Vec<&str> = vec!["hello","world"];
+        data.push(&local);
+        LinePart { part: data.join(separator), len: data.join(separator).chars().count() }
     }
 }
 
